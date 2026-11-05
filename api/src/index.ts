@@ -1,7 +1,31 @@
 import { Hono } from 'hono'
+import { HTTPException } from 'hono/http-exception'
+import homeRoutes from './routes/homes'
+
+type AppEnv = {
+  Bindings: Env
+}
 
 const app = new Hono<{ Bindings: Env }>()
 
-app.get('/api/health', (c) => c.json({ status: 'ok' }))
+
+app.route('/api/homes', homeRoutes)
+
+app.get('/api/health', (c) => {
+  return c.json({ status: 'ok' })
+})
+
+
+app.get('/api/db-health', async (c) => {
+  const result = await c.env.DB
+    .prepare('SELECT COUNT(*) AS count FROM homes')
+    .first()
+
+  return c.json({
+    status: 'ok',
+    database: 'connected',
+    result
+  })
+})
 
 export default app
