@@ -67,6 +67,69 @@ homeRoutes.post('/', async (c) => {
   return c.json(home, 201)
 })
 
+homeRoutes.post('/:homeId/members', async (c) => {
+
+  const homeId = c.req.param('homeId')
+
+  let body: unknown
+
+  try {
+    body = await c.req.json()
+  } catch {
+    throw new HTTPException(400, {
+      message: 'Invalid/No JSON body',
+    })
+  }
+
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    Array.isArray(body) ||
+    !('name' in body)
+  ) {
+    throw new HTTPException(422, {
+      message: 'name is required',
+    })
+  }
+
+  const name = body.name
+
+  if (
+    typeof name !== 'string' ||
+    name.trim().length === 0
+  ) {
+    throw new HTTPException(422, {
+      message: 'name must be a non-empty string',
+    })
+  }
+
+  const home = await c.env.DB
+    .prepare('SELECT id FROM homes WHERE id = ?')
+    .bind(homeId)
+    .first()
+
+  if (!home) {
+    throw new HTTPException(404, {
+      message: 'Home not found',
+    })
+  }
+
+  const member: Member = {
+    id: crypto.randomUUID(),
+    homeId,
+    name: name.trim(),
+  }
+
+  await c.env.DB
+    .prepare(
+      'INSERT INTO members (id, home_id, name) VALUES (?, ?, ?)'
+    )
+    .bind(member.id, member.homeId, member.name)
+    .run()
+
+  return c.json(member, 201)
+})
+
 homeRoutes.get('/', async (c) => {
   const { results } = await c.env.DB
     .prepare('SELECT id, name FROM homes')
