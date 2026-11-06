@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import type {Home} from '../types/homes'
+import type {Home,Member} from '../types'
+
 
 type AppEnv = {
   Bindings: Env
@@ -45,12 +46,23 @@ homeRoutes.post('/', async (c) => {
     id: crypto.randomUUID(),
     name: name.trim(),
   }
-
-  await c.env.DB.prepare(
-    'INSERT INTO homes (id, name) VALUES (?, ?)'
-  )
+  try {
+  await c.env.DB
+    .prepare('INSERT INTO homes (id, name) VALUES (?, ?)')
     .bind(home.id, home.name)
     .run()
+} catch (error) {
+  if (
+    error instanceof Error &&
+    error.message.includes('UNIQUE constraint failed')
+  ) {
+    throw new HTTPException(409, {
+      message: 'Home with this name already exists',
+    })
+  }
+
+  throw error
+}
 
   return c.json(home, 201)
 })
