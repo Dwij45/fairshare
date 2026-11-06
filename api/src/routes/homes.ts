@@ -67,4 +67,61 @@ homeRoutes.post('/', async (c) => {
   return c.json(home, 201)
 })
 
+homeRoutes.get('/', async (c) => {
+  const { results } = await c.env.DB
+    .prepare('SELECT id, name FROM homes')
+    .all<Home>()
+
+  return c.json({ homes: results }, 200)
+})
+
+homeRoutes.delete('/:id', async (c) => {
+  const id = c.req.param('id')
+
+  const home = await c.env.DB
+    .prepare('SELECT id FROM homes WHERE id = ?')
+    .bind(id)
+    .first()
+
+  if (!home) {
+    throw new HTTPException(404, {
+      message: 'Home not found',
+    })
+  }
+
+  const members = await c.env.DB
+    .prepare('SELECT COUNT(*) AS count FROM members WHERE home_id = ?')
+    .bind(id)
+    .first<{ count: number }>()
+
+  const bills = await c.env.DB
+    .prepare('SELECT COUNT(*) AS count FROM bills WHERE home_id = ?')
+    .bind(id)
+    .first<{ count: number }>()
+
+  if ((members?.count ?? 0) > 0 || (bills?.count ?? 0) > 0) {
+    throw new HTTPException(409, {
+      message: 'Cannot delete a home that contains members or bills',
+    })
+  }
+
+  const result = await c.env.DB
+    .prepare('DELETE FROM homes WHERE id = ?')
+    .bind(id)
+    .run()
+
+  if (result.meta.changes === 0) {
+    throw new HTTPException(404, {
+      message: 'Home not found',
+    })
+  }
+
+  return c.json({
+    message: 'Home deleted successfully',
+  })
+})
+
+
+
+
 export default homeRoutes
