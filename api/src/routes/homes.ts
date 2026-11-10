@@ -389,7 +389,7 @@ homeRoutes.get('/:homeId/balances', async (c) => {
     .prepare(`
       SELECT
         m.id AS memberId,
-        m.name AS memberName,
+        m.name AS name,
         COALESCE(SUM(
           CASE
             WHEN s.paid_at IS NULL THEN s.amount_cents

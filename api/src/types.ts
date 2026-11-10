@@ -72,6 +72,6 @@ export type ShareRow = {
 }
 export type BalanceRow = {
   memberId: string
-  memberName: string
+  name: string
   outstandingCents: number
 }
