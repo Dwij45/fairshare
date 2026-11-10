@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import homeRoutes from './routes/homes'
+import billRoutes from './routes/bills'
 
 type AppEnv = {
   Bindings: Env
@@ -10,11 +11,11 @@ const app = new Hono<{ Bindings: Env }>()
 
 
 app.route('/api/homes', homeRoutes)
+app.route('/api/bills', billRoutes)
 
 app.get('/api/health', (c) => {
   return c.json({ status: 'ok' })
 })
-
 
 app.get('/api/db-health', async (c) => {
   const result = await c.env.DB
