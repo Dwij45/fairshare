@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import type {Home,Member,Share,Bill} from '../types'
+import type {Home,Member,Share,Bill,BillRow , BillWithMembers,ShareWithMemberRow} from '../types'
 
 type AppEnv = {
   Bindings: Env
@@ -284,7 +284,7 @@ homeRoutes.post('/:homeId/bills', async (c) => {
           INSERT INTO shares (id, bill_id, member_id, amount_cents)
           VALUES (?, ?, ?, ?)
         `)
-        .bind(billId === '' ? '' : share.id, billId, share.memberId, share.amountCents)
+        .bind(share.id, billId, share.memberId, share.amountCents)
     ),
   ]
 
@@ -299,6 +299,75 @@ homeRoutes.post('/:homeId/bills', async (c) => {
   }
 
   return c.json(bill, 201)
+})
+
+homeRoutes.get('/:homeId/bills', async (c) => {
+  const homeId = c.req.param('homeId')
+
+  // 1. Check whether the home exists
+  const home = await c.env.DB
+    .prepare('SELECT id FROM homes WHERE id = ?')
+    .bind(homeId)
+    .first()
+
+  if (!home) {
+    throw new HTTPException(404, {
+      message: 'Home not found',
+    })
+  }
+
+  // 2. Fetch bills
+  const { results: billRows } = await c.env.DB
+    .prepare(`
+      SELECT
+        id,
+        home_id AS homeId,
+        title,
+        total_cents AS totalCents
+      FROM bills
+      WHERE home_id = ?
+      ORDER BY rowid DESC
+    `)
+    .bind(homeId)
+    .all<BillRow>()
+
+  // 3. Fetch shares with member names
+  const { results: shareRows } = await c.env.DB
+    .prepare(`
+      SELECT
+        s.id,
+        s.bill_id AS billId,
+        s.member_id AS memberId,
+        m.name AS memberName,
+        s.amount_cents AS amountCents,
+        s.paid_at AS paidAt
+      FROM shares s
+      JOIN bills b ON b.id = s.bill_id
+      JOIN members m ON m.id = s.member_id
+      WHERE b.home_id = ?
+      ORDER BY m.sequence ASC
+    `)
+    .bind(homeId)
+    .all<ShareWithMemberRow>()
+
+  // 4. Group shares by bill ID
+  const sharesByBill = new Map<string, ShareWithMemberRow[]>()
+
+  for (const share of shareRows) {
+    const group = sharesByBill.get(share.billId) ?? []
+    group.push(share)
+    sharesByBill.set(share.billId, group)
+  }
+
+  // 5. Attach shares to bills
+  const bills: BillWithMembers[] = billRows.map((bill) => ({
+    ...bill,
+    shares: (sharesByBill.get(bill.id) ?? []).map(
+      ({ billId, ...share }) => share
+    ),
+  }))
+
+  return c.json({ bills }, 200)
 })
 
 export default homeRoutes
