@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import type {Home,Member,Share,Bill,BillRow , BillWithMembers,ShareWithMemberRow} from '../types'
+import type {Home,Member,Share,Bill,BillRow , BillWithMembers,ShareWithMemberRow ,  BalanceRow} from '../types'
 
 type AppEnv = {
   Bindings: Env
@@ -370,4 +370,42 @@ homeRoutes.get('/:homeId/bills', async (c) => {
   return c.json({ bills }, 200)
 })
 
+
+homeRoutes.get('/:homeId/balances', async (c) => {
+  const homeId = c.req.param('homeId')
+
+  const home = await c.env.DB
+    .prepare('SELECT id FROM homes WHERE id = ?')
+    .bind(homeId)
+    .first()
+
+  if (!home) {
+    throw new HTTPException(404, {
+      message: 'Home not found',
+    })
+  }
+
+  const { results: balances } = await c.env.DB
+    .prepare(`
+      SELECT
+        m.id AS memberId,
+        m.name AS memberName,
+        COALESCE(SUM(
+          CASE
+            WHEN s.paid_at IS NULL THEN s.amount_cents
+            ELSE 0
+          END
+        ), 0) AS outstandingCents
+      FROM members m
+      LEFT JOIN shares s ON s.member_id = m.id
+      LEFT JOIN bills b ON b.id = s.bill_id
+      WHERE m.home_id = ?
+      GROUP BY m.id, m.name, m.sequence
+      ORDER BY m.sequence ASC
+    `)
+    .bind(homeId)
+    .all<BalanceRow>()
+
+  return c.json({ balances }, 200)
+})
 export default homeRoutes
