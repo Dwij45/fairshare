@@ -1,13 +1,12 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import type {ShareRow } from '../types'
+import type { ShareRow } from '../types'
 
 type AppEnv = {
   Bindings: Env
 }
 
 const billRoutes = new Hono<AppEnv>()
-
 
 billRoutes.post('/:billId/shares/:shareId/pay', async (c) => {
   const billId = c.req.param('billId')
@@ -21,8 +20,7 @@ billRoutes.post('/:billId/shares/:shareId/pay', async (c) => {
     })
   }
 
-  const share = await c.env.DB
-    .prepare(`
+  const share = await c.env.DB.prepare(`
       SELECT
         id,
         bill_id AS billId,
@@ -59,8 +57,7 @@ billRoutes.post('/:billId/shares/:shareId/pay', async (c) => {
 
   const paidAt = new Date().toISOString()
 
-  const result = await c.env.DB
-    .prepare(`
+  const result = await c.env.DB.prepare(`
       UPDATE shares
       SET paid_at = ?, payment_key = ?
       WHERE id = ?
@@ -71,8 +68,7 @@ billRoutes.post('/:billId/shares/:shareId/pay', async (c) => {
     .run()
 
   if (result.meta.changes === 0) {
-    const current = await c.env.DB
-      .prepare(`
+    const current = await c.env.DB.prepare(`
         SELECT
           id,
           bill_id AS billId,

@@ -1,6 +1,15 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import type {Home,Member,Share,Bill,BillRow , BillWithMembers,ShareWithMemberRow ,  BalanceRow} from '../types'
+import type {
+  BalanceRow,
+  Bill,
+  BillRow,
+  BillWithMembers,
+  Home,
+  Member,
+  Share,
+  ShareWithMemberRow,
+} from '../types'
 
 type AppEnv = {
   Bindings: Env
@@ -22,12 +31,7 @@ homeRoutes.post('/', async (c) => {
     })
   }
 
-  if (
-    typeof body !== 'object' ||
-    body === null ||
-    Array.isArray(body) ||
-    !('name' in body)
-  ) {
+  if (typeof body !== 'object' || body === null || Array.isArray(body) || !('name' in body)) {
     throw new HTTPException(422, {
       message: 'name is required',
     })
@@ -35,10 +39,7 @@ homeRoutes.post('/', async (c) => {
 
   const name = body.name
 
-  if (
-    typeof name !== 'string' ||
-    name.trim().length === 0
-  ) {
+  if (typeof name !== 'string' || name.trim().length === 0) {
     throw new HTTPException(422, {
       message: 'name must be a non-empty string',
     })
@@ -49,28 +50,23 @@ homeRoutes.post('/', async (c) => {
     name: name.trim(),
   }
   try {
-  await c.env.DB
-    .prepare('INSERT INTO homes (id, name) VALUES (?, ?)')
-    .bind(home.id, home.name)
-    .run()
-} catch (error) {
-  if (
-    error instanceof Error &&
-    error.message.includes('UNIQUE constraint failed')
-  ) {
-    throw new HTTPException(409, {
-      message: 'Home with this name already exists',
-    })
-  }
+    await c.env.DB.prepare('INSERT INTO homes (id, name) VALUES (?, ?)')
+      .bind(home.id, home.name)
+      .run()
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
+      throw new HTTPException(409, {
+        message: 'Home with this name already exists',
+      })
+    }
 
-  throw error
-}
+    throw error
+  }
 
   return c.json(home, 201)
 })
 
 homeRoutes.post('/:homeId/members', async (c) => {
-
   const homeId = c.req.param('homeId')
 
   let body: unknown
@@ -83,12 +79,7 @@ homeRoutes.post('/:homeId/members', async (c) => {
     })
   }
 
-  if (
-    typeof body !== 'object' ||
-    body === null ||
-    Array.isArray(body) ||
-    !('name' in body)
-  ) {
+  if (typeof body !== 'object' || body === null || Array.isArray(body) || !('name' in body)) {
     throw new HTTPException(422, {
       message: 'name is required',
     })
@@ -96,19 +87,13 @@ homeRoutes.post('/:homeId/members', async (c) => {
 
   const name = body.name
 
-  if (
-    typeof name !== 'string' ||
-    name.trim().length === 0
-  ) {
+  if (typeof name !== 'string' || name.trim().length === 0) {
     throw new HTTPException(422, {
       message: 'name must be a non-empty string',
     })
   }
 
-  const home = await c.env.DB
-    .prepare('SELECT id FROM homes WHERE id = ?')
-    .bind(homeId)
-    .first()
+  const home = await c.env.DB.prepare('SELECT id FROM homes WHERE id = ?').bind(homeId).first()
 
   if (!home) {
     throw new HTTPException(404, {
@@ -122,10 +107,7 @@ homeRoutes.post('/:homeId/members', async (c) => {
     name: name.trim(),
   }
 
-  await c.env.DB
-    .prepare(
-      'INSERT INTO members (id, home_id, name) VALUES (?, ?, ?)'
-    )
+  await c.env.DB.prepare('INSERT INTO members (id, home_id, name) VALUES (?, ?, ?)')
     .bind(member.id, member.homeId, member.name)
     .run()
 
@@ -133,9 +115,7 @@ homeRoutes.post('/:homeId/members', async (c) => {
 })
 
 homeRoutes.get('/', async (c) => {
-  const { results } = await c.env.DB
-    .prepare('SELECT id, name FROM homes')
-    .all<Home>()
+  const { results } = await c.env.DB.prepare('SELECT id, name FROM homes').all<Home>()
 
   return c.json({ homes: results }, 200)
 })
@@ -143,10 +123,7 @@ homeRoutes.get('/', async (c) => {
 homeRoutes.delete('/:id', async (c) => {
   const id = c.req.param('id')
 
-  const home = await c.env.DB
-    .prepare('SELECT id FROM homes WHERE id = ?')
-    .bind(id)
-    .first()
+  const home = await c.env.DB.prepare('SELECT id FROM homes WHERE id = ?').bind(id).first()
 
   if (!home) {
     throw new HTTPException(404, {
@@ -154,13 +131,11 @@ homeRoutes.delete('/:id', async (c) => {
     })
   }
 
-  const members = await c.env.DB
-    .prepare('SELECT COUNT(*) AS count FROM members WHERE home_id = ?')
+  const members = await c.env.DB.prepare('SELECT COUNT(*) AS count FROM members WHERE home_id = ?')
     .bind(id)
     .first<{ count: number }>()
 
-  const bills = await c.env.DB
-    .prepare('SELECT COUNT(*) AS count FROM bills WHERE home_id = ?')
+  const bills = await c.env.DB.prepare('SELECT COUNT(*) AS count FROM bills WHERE home_id = ?')
     .bind(id)
     .first<{ count: number }>()
 
@@ -170,10 +145,7 @@ homeRoutes.delete('/:id', async (c) => {
     })
   }
 
-  const result = await c.env.DB
-    .prepare('DELETE FROM homes WHERE id = ?')
-    .bind(id)
-    .run()
+  const result = await c.env.DB.prepare('DELETE FROM homes WHERE id = ?').bind(id).run()
 
   if (result.meta.changes === 0) {
     throw new HTTPException(404, {
@@ -189,11 +161,7 @@ homeRoutes.delete('/:id', async (c) => {
 homeRoutes.post('/:homeId/bills', async (c) => {
   const homeId = c.req.param('homeId')
 
-
-  const home = await c.env.DB
-    .prepare('SELECT id FROM homes WHERE id = ?')
-    .bind(homeId)
-    .first()
+  const home = await c.env.DB.prepare('SELECT id FROM homes WHERE id = ?').bind(homeId).first()
 
   if (!home) {
     throw new HTTPException(404, {
@@ -211,11 +179,7 @@ homeRoutes.post('/:homeId/bills', async (c) => {
     })
   }
 
-  if (
-    typeof body !== 'object' ||
-    body === null ||
-    Array.isArray(body)
-  ) {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     throw new HTTPException(400, {
       message: 'Request body must be an object',
     })
@@ -232,18 +196,13 @@ homeRoutes.post('/:homeId/bills', async (c) => {
     })
   }
 
-  if (
-    typeof totalCents !== 'number' ||
-    !Number.isSafeInteger(totalCents) ||
-    totalCents <= 0
-  ) {
+  if (typeof totalCents !== 'number' || !Number.isSafeInteger(totalCents) || totalCents <= 0) {
     throw new HTTPException(422, {
       message: 'totalCents must be a positive safe integer',
     })
   }
 
-  const { results: members } = await c.env.DB
-    .prepare(`
+  const { results: members } = await c.env.DB.prepare(`
       SELECT id, sequence
       FROM members
       WHERE home_id = ?
@@ -271,20 +230,16 @@ homeRoutes.post('/:homeId/bills', async (c) => {
   }))
 
   const statements = [
-    c.env.DB
-      .prepare(`
+    c.env.DB.prepare(`
         INSERT INTO bills (id, home_id, title, total_cents)
         VALUES (?, ?, ?, ?)
-      `)
-      .bind(billId, homeId, title.trim(), totalCents),
+      `).bind(billId, homeId, title.trim(), totalCents),
 
     ...shares.map((share) =>
-      c.env.DB
-        .prepare(`
+      c.env.DB.prepare(`
           INSERT INTO shares (id, bill_id, member_id, amount_cents)
           VALUES (?, ?, ?, ?)
-        `)
-        .bind(share.id, billId, share.memberId, share.amountCents)
+        `).bind(share.id, billId, share.memberId, share.amountCents),
     ),
   ]
 
@@ -305,10 +260,7 @@ homeRoutes.get('/:homeId/bills', async (c) => {
   const homeId = c.req.param('homeId')
 
   // 1. Check whether the home exists
-  const home = await c.env.DB
-    .prepare('SELECT id FROM homes WHERE id = ?')
-    .bind(homeId)
-    .first()
+  const home = await c.env.DB.prepare('SELECT id FROM homes WHERE id = ?').bind(homeId).first()
 
   if (!home) {
     throw new HTTPException(404, {
@@ -317,8 +269,7 @@ homeRoutes.get('/:homeId/bills', async (c) => {
   }
 
   // 2. Fetch bills
-  const { results: billRows } = await c.env.DB
-    .prepare(`
+  const { results: billRows } = await c.env.DB.prepare(`
       SELECT
         id,
         home_id AS homeId,
@@ -332,8 +283,7 @@ homeRoutes.get('/:homeId/bills', async (c) => {
     .all<BillRow>()
 
   // 3. Fetch shares with member names
-  const { results: shareRows } = await c.env.DB
-    .prepare(`
+  const { results: shareRows } = await c.env.DB.prepare(`
       SELECT
         s.id,
         s.bill_id AS billId,
@@ -362,22 +312,16 @@ homeRoutes.get('/:homeId/bills', async (c) => {
   // 5. Attach shares to bills
   const bills: BillWithMembers[] = billRows.map((bill) => ({
     ...bill,
-    shares: (sharesByBill.get(bill.id) ?? []).map(
-      ({ billId, ...share }) => share
-    ),
+    shares: (sharesByBill.get(bill.id) ?? []).map(({ billId, ...share }) => share),
   }))
 
   return c.json({ bills }, 200)
 })
 
-
 homeRoutes.get('/:homeId/balances', async (c) => {
   const homeId = c.req.param('homeId')
 
-  const home = await c.env.DB
-    .prepare('SELECT id FROM homes WHERE id = ?')
-    .bind(homeId)
-    .first()
+  const home = await c.env.DB.prepare('SELECT id FROM homes WHERE id = ?').bind(homeId).first()
 
   if (!home) {
     throw new HTTPException(404, {
@@ -385,8 +329,7 @@ homeRoutes.get('/:homeId/balances', async (c) => {
     })
   }
 
-  const { results: balances } = await c.env.DB
-    .prepare(`
+  const { results: balances } = await c.env.DB.prepare(`
       SELECT
         m.id AS memberId,
         m.name AS name,
