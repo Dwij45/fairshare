@@ -32,3 +32,41 @@ export type Bill = {
   totalCents: number
   shares: Share[]
 }
+
+export type BillRow = {
+  id: string
+  homeId: string
+  title: string
+  totalCents: number
+}
+
+export type ShareWithMember = Share & {
+  memberName: string
+}
+
+export type BillWithMembers = Omit<Bill, 'shares'> & {
+  shares: ShareWithMember[]
+}
+
+export type ShareWithMemberRow = {
+  id: string
+  billId: string
+  memberId: string
+  memberName: string
+  amountCents: number
+  paidAt: string | null
+}
+
+export type StoredShare = Share & {
+  paymentKey: string | null
+}
+
+// Bills
+export type ShareRow = {
+  id: string
+  billId: string
+  memberId: string
+  amountCents: number
+  paidAt: string | null
+  paymentKey: string | null
+}
