@@ -70,3 +70,8 @@ export type ShareRow = {
   paidAt: string | null
   paymentKey: string | null
 }
+export type BalanceRow = {
+  memberId: string
+  memberName: string
+  outstandingCents: number
+}
